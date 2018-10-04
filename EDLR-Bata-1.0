@@ -1,0 +1,168 @@
+using System;
+using System.Drawing;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.IO;
+using System.Security.Permissions;
+
+
+public static class VoiceBotScript
+{
+		static string oldTimeStamp;
+        static string logpath = "C:\\Users\\"+ Environment.UserName +"\\Saved Games\\Frontier Developments\\Elite Dangerous\\";
+        private static string st;
+        private static string oldst;
+        
+	public static void Run(IntPtr windowHandle)
+	{
+        
+        BFS.Speech.TextToSpeech(" Reading Elite log entries");
+		ReadLog();
+		
+	}
+	
+	   public static void ReadLog()
+        {
+       
+// creat event watcher	
+        // Create a new FileSystemWatcher and set its properties.
+            FileSystemWatcher watcher = new FileSystemWatcher();
+            watcher.Path = logpath;
+            // Watch for changes in LastWrite times, and the renaming of files or directories. 
+            watcher.NotifyFilter = NotifyFilters.LastWrite; 
+            //removed to improve performance NotifyFilters.LastAccess | NotifyFilters.LastWrite | NotifyFilters.Size| NotifyFilters.FileName;
+           
+            // Add event handlers.
+            watcher.Changed += new FileSystemEventHandler(OnChanged);
+            //watcher.Created += new FileSystemEventHandler(OnChanged);
+       
+            // Begin watching.
+            watcher.EnableRaisingEvents = true;
+
+            // Wait for the user to quit the program.
+   
+            //infinite loop
+            while(true)
+            {
+
+            }
+        }
+
+        // Define the event handlers.
+        private static void OnChanged(object source, FileSystemEventArgs e)
+        {
+            // Specify what is done when a file is changed, created, or deleted.
+
+            var directory = new DirectoryInfo(logpath);
+            var myFile = (from f in directory.GetFiles("Journal.*.log")
+                          orderby f.LastWriteTime descending
+                          select f).First();
+
+            try
+            {
+
+                string path = logpath + myFile; 
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var sf = new StreamReader(fs, Encoding.UTF8))  //.Default
+                {
+                // read the file save the last 2 lines for comparision
+                    //var logList = new List<string>();
+                    string lastTime = "";
+                    string thisTime = "";
+                    
+                    do
+                    {
+                        st = sf.ReadLine();
+                        lastTime = thisTime;
+                        thisTime = st;
+                    } while (!sf.EndOfStream) ;
+                    // if the last line contains music save the line befor to st for inspection
+                   //changed to a faster comparision if (thisTime.Contains("Music")) 
+                   if (thisTime.Substring(47, 5) == "Music")
+                   {
+                
+                        st = lastTime; 
+                    }
+                    
+                    /* if(chkStr.Contains("Loadout"))
+                    {
+                        BFS.ScriptSettings.WriteValue("loadout",st);
+                    } */
+                
+
+                // serperate the usable data pairs
+                    Char delimiter = ',';
+                    String[] substrings = st.Split(delimiter);
+                    string noQuotes = substrings[0].Replace("\"", "");
+                    string[] timestamp = noQuotes.Split(':');
+              
+             // check for new events 
+                    if (oldTimeStamp != timestamp[3])
+                    {
+                        oldTimeStamp = timestamp[3];
+                                      
+                    // check for events 
+                        if (substrings[1] == " \"event\":\"DiscoveryScan\"")
+                        {
+                            BFS.Speech.TextToSpeech("found new discoveries");
+                         }
+                         else if (substrings[1] == " \"event\":\"StartJump\"")
+                        {
+                          BFS.Speech.TextToSpeech("jump started");
+                        }
+                         else if (substrings[1] == " \"event\":\"FSDJump\"")
+                        {
+                            BFS.Speech.TextToSpeech("jump complete");
+                           
+                            
+                            noQuotes = substrings[2].Replace("\"", "");
+                            string[] name = noQuotes.Split(':');
+                           
+                            
+                            BFS.ScriptSettings.WriteValue("Lastsystem",BFS.ScriptSettings.ReadValue("Currentsystem"));
+                            BFS.ScriptSettings.WriteValue("Currentsystem",name[1]);
+                            //BFS.Speech.TextToSpeech(BFS.ScriptSettings.ReadValue("Lastsystem"));
+                           
+                            if(BFS.ScriptSettings.ReadValueBool("AutoScan"))  //if autoscan is true scan every system
+                            {
+                            BFS.VoiceBotActions.RunMacro("system scan");
+                            }
+                        }
+                        else if (substrings[1] == " \"event\":\"DockingGranted\"")
+                        {
+                            
+                            noQuotes = substrings[4].Replace("\"", "");
+                            string[] name = noQuotes.Split(':');
+                            BFS.Speech.TextToSpeech("Docking has beeen granted at" + name[1]);
+                            BFS.VoiceBotActions.RunMacro("docking prep");
+                        }
+                       
+                        else if (substrings[1] == " \"event\":\"Undocked\"")
+                        {
+                            BFS.VoiceBotActions.RunMacro("launch");
+                            
+                        }
+                       
+                        else if (substrings[1] == " \"event\":\"Loadout\"")
+                        {
+                            noQuotes = substrings[2].Replace("\"", "");
+                            noQuotes = noQuotes.Replace("_", " ");
+                            string[] name = noQuotes.Split(':');
+                            BFS.Speech.TextToSpeech("your " + name[1] +"is ready to go");
+                            BFS.ScriptSettings.WriteValue("Shiptype",name[1]);
+                        }
+                    }
+                
+                }
+            
+            }
+                catch (Exception be)
+                {
+                     BFS.Speech.TextToSpeech("error in second part");
+                }
+             
+           
+       }
+}
