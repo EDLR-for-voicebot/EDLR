@@ -1,0 +1,20 @@
+using System;
+using System.Drawing;
+
+public static class VoiceBotScript
+{
+	
+public static void Run(IntPtr windowHandle)
+{
+    // If the window property is IntPtr.Zero, it doesn't exist. Run the script, and create the property
+    if( BFS.Window.GetWindowProperty(windowHandle, "IsEliteLogRunnerRunning") == IntPtr.Zero )
+    {
+        BFS.Window.SetWindowProperty(windowHandle, "IsEliteLogRunnerRunning", new IntPtr(1));
+        BFS.VoiceBotActions.RunMacro("elite log reader");
+    }
+    else
+    {
+        BFS.Speech.TextToSpeech("log reader is already running");
+    }
+}
+}
